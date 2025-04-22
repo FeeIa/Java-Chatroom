@@ -1,18 +1,13 @@
-package chatroom.scripts;
+package chatroom.client;
 
+import chatroom.Main;
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/*
-The way it communicates:
-- Server.ClientConnection output = Client.input
-- Client.output = Server.ClientConnection input
-*/
-
+// Represents each Client instance (command-line interface)
 public class Client implements Runnable {
-    /// VARIABLES & INITIALIZERS
     private Socket clientSocket;
     private BufferedReader in;
     private PrintWriter out;
@@ -23,7 +18,6 @@ public class Client implements Runnable {
             this.clientSocket = new Socket("localhost", port);
         }
         catch (IOException e) {
-            this.clientSocket = null; // Just to make sure it's NULL
             System.err.println("Failed to connect to server on port " + port + ". Possibly because no server exists.");
         }
     }
@@ -35,16 +29,17 @@ public class Client implements Runnable {
             return;
         }
 
+        // Initialize important variables
+        this.threadPool = Executors.newCachedThreadPool();
+
         // IO streams
         try {
             this.in = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
-            this.out = new PrintWriter(this.clientSocket.getOutputStream(), true); // Auto flush, so no need to call flush()
+            this.out = new PrintWriter(new OutputStreamWriter(this.clientSocket.getOutputStream()), true); // Auto flush, so no need to call flush()
         } catch (IOException e) {
             System.err.println("Failed to establish IO stream.");
+            this.close();
         }
-
-        // Initialize other important variables
-        this.threadPool = Executors.newCachedThreadPool();
 
         // Starts listening from server in a different thread and output accordingly to the client
         this.listenForServerMessage();
@@ -53,16 +48,13 @@ public class Client implements Runnable {
         this.startInputHandler();
     }
 
-    /// METHODS
     // Returns whether the client connected successfully or not
     public boolean success() {
         return (this.clientSocket != null);
     }
 
-    // Listens to message from server
+    // Listens for server message being sent by ClientConnection
     private void listenForServerMessage() {
-        // Prints out all the message from the server to client, i.e.
-        // When Server.ClientConnection outputs a message, print it inside the Client class
         this.threadPool.execute(() -> {
             String messageFromServer;
 
@@ -71,7 +63,8 @@ public class Client implements Runnable {
                     System.out.println(messageFromServer);
                 }
             } catch (IOException e) {
-                System.err.println("Failed to receive message from server.");
+                System.err.println("Failed to read message from server.");
+                this.close();
             }
         });
     }
@@ -82,12 +75,10 @@ public class Client implements Runnable {
 
         while (!this.clientSocket.isClosed()) {
             try {
-                // Sends all Client class inputs as output to Server.ClientConnection as an input, i.e.
-                // When the Client sends an input --> output it --> Server.ClientConnection picks it up as an input
                 String message = reader.readLine();
                 this.out.println(message);
             } catch (IOException e) {
-                // The terminal must've been closed
+                System.err.println("Failed to read input.");
                 this.close();
             }
         }
@@ -97,13 +88,19 @@ public class Client implements Runnable {
     private void close() {
         try {
             if (this.clientSocket != null && !this.clientSocket.isClosed()) {
+                this.clientSocket.close();
+                this.threadPool.shutdown();
                 this.in.close();
                 this.out.close();
-                this.clientSocket.close();
                 System.out.println("Client closed.");
             }
         } catch (IOException e) {
             System.err.println("An error occurred when attempting to close the client.");
         }
+    }
+
+    // Main function to start the client individually
+    public static void main(String[] args) {
+        Main.promptClientPort();
     }
 }
