@@ -1,7 +1,6 @@
 # Chatroom - CSC1004 Project 1
-### Developed by Bryan Edelson
 
-This is one of the three projects in the **CSC1004** course of CUHK-SZ. There are three types of features implemented:
+There are three types of features implemented:
 - **Basic**: Features required by the course project details.
 - **Advanced**: Features that are implemented for extra score.
 - **Additional**: Features that are implemented for self-interest.
